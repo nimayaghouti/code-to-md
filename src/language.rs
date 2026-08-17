@@ -1,0 +1,26 @@
+pub fn extension_to_language(ext: &str) -> &'static str {
+    match ext.to_lowercase().as_str() {
+        "tsx" => "tsx",
+        "ts" | "mts" | "cts" => "typescript",
+        "jsx" => "jsx",
+        "js" | "mjs" | "cjs" => "javascript",
+        "rs" => "rust",
+        "py" => "python",
+        "json" => "json",
+        "jsonc" => "jsonc",
+        "toml" => "toml",
+        "yaml" | "yml" => "yaml",
+        "md" => "markdown",
+        "html" => "html",
+        "css" => "css",
+        "scss" => "scss",
+        "go" => "go",
+        "c" | "h" => "c",
+        "cpp" | "cc" | "hpp" => "cpp",
+        "sh" | "bash" => "bash",
+        "ps1" => "powershell",
+        "sql" => "sql",
+        "txt" => "text",
+        _ => "",
+    }
+}
