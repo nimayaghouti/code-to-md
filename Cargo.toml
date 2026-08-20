@@ -10,3 +10,10 @@ eframe = "0.36.1"
 egui = "0.36.1"
 ignore = "0.4.33"
 rfd = "0.17.2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
