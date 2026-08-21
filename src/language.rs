@@ -24,3 +24,16 @@ pub fn extension_to_language(ext: &str) -> &'static str {
         _ => "",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extension_to_language() {
+        assert_eq!(extension_to_language("rs"), "rust");
+        assert_eq!(extension_to_language("TSX"), "tsx");
+        assert_eq!(extension_to_language("unknown"), "");
+        assert_eq!(extension_to_language("yml"), "yaml");
+    }
+}
