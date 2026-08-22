@@ -4,9 +4,17 @@ pub mod selection;
 
 use crate::fs_tree::TreeNode;
 use crate::preview::FilePreview;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+#[derive(Default, Deserialize, Serialize)]
+pub struct AppConfig {
+    pub last_project_root: Option<PathBuf>,
+    pub last_output_path: Option<PathBuf>,
+}
+
 pub struct AppState {
+    pub config: AppConfig,
     pub status: String,
     pub project_root: Option<PathBuf>,
     pub file_tree: Option<TreeNode>,
@@ -21,6 +29,7 @@ pub struct AppState {
 impl AppState {
     pub fn new(cli_folder: Option<PathBuf>) -> Self {
         let mut state = Self {
+            config: AppConfig::default(),
             status: "Ready".to_string(),
             project_root: None,
             file_tree: None,
