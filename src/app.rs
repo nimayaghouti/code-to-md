@@ -1,29 +1,56 @@
-use crate::state::AppState;
+use crate::state::{AppConfig, AppState};
 use crate::ui;
 use eframe::egui;
 use std::path::PathBuf;
 
 pub struct App {
     pub state: AppState,
+    pub first_frame: bool,
 }
 
 impl App {
-    pub fn new(cli_folder: Option<PathBuf>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, cli_folder: Option<PathBuf>) -> Self {
+        let mut state = AppState::new(cli_folder.clone());
+
+        if let Some(storage) = cc.storage {
+            if let Some(config) = eframe::get_value::<AppConfig>(storage, eframe::APP_KEY) {
+                state.config = config;
+
+                if cli_folder.is_none() {
+                    if let Some(ref last_root) = state.config.last_project_root {
+                        if last_root.exists() && last_root.is_dir() {
+                            state.open_folder(last_root.clone());
+                        }
+                    }
+                }
+
+                if let Some(ref last_out) = state.config.last_output_path {
+                    state.output_path = Some(last_out.clone());
+                }
+            }
+        }
+
         Self {
-            state: AppState::new(cli_folder),
+            state,
+            first_frame: true,
         }
     }
 }
 
-impl Default for App {
-    fn default() -> Self {
-        Self::new(None)
-    }
-}
-
 impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.state.config.last_project_root = self.state.project_root.clone();
+        self.state.config.last_output_path = self.state.output_path.clone();
+        eframe::set_value(storage, eframe::APP_KEY, &self.state.config);
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // Handle drag and drop events
+        if self.first_frame {
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::Visible(true));
+            self.first_frame = false;
+        }
+
         let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
         if !dropped_files.is_empty() {
             for dropped_file in dropped_files {
@@ -42,7 +69,6 @@ impl eframe::App for App {
             }
         }
 
-        // Render UI Panels
         egui::Panel::top("toolbar").show(ui, |ui| {
             ui::toolbar::render(ui, &mut self.state);
         });
