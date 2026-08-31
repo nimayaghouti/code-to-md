@@ -6,10 +6,15 @@ use std::path::PathBuf;
 pub struct App {
     pub state: AppState,
     pub first_frame: bool,
+    pub show_left_panel: bool,
+    pub show_right_panel: bool,
+    pub is_compact_mode: Option<bool>,
 }
 
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>, cli_folder: Option<PathBuf>) -> Self {
+        ui::fonts::setup(&cc.egui_ctx);
+
         let mut state = AppState::new(cli_folder.clone());
 
         if let Some(storage) = cc.storage {
@@ -33,6 +38,9 @@ impl App {
         Self {
             state,
             first_frame: true,
+            show_left_panel: true,
+            show_right_panel: true,
+            is_compact_mode: None,
         }
     }
 }
@@ -51,48 +59,98 @@ impl eframe::App for App {
             self.first_frame = false;
         }
 
-        let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
-        if !dropped_files.is_empty() {
-            for dropped_file in dropped_files {
-                let path = dropped_file.path();
-                if path.as_os_str().is_empty() {
-                    continue;
-                }
+        ui::events::handle(ui, &mut self.state);
 
-                if path.is_dir() {
-                    self.state.open_folder(path.to_path_buf());
-                    break;
-                } else {
-                    self.state.status =
-                        format!("Error: Dropped item is not a directory: {}", path.display());
-                }
+        let screen_width = ui.max_rect().width();
+        let is_compact = screen_width < 900.0;
+
+        if Some(is_compact) != self.is_compact_mode {
+            self.is_compact_mode = Some(is_compact);
+            if is_compact {
+                self.show_left_panel = false;
+                self.show_right_panel = false;
+            } else {
+                self.show_left_panel = true;
+                self.show_right_panel = true;
             }
         }
 
-        egui::Panel::top("toolbar").show(ui, |ui| {
-            ui::toolbar::render(ui, &mut self.state);
-        });
+        let panel_frame = egui::Frame::central_panel(ui.style())
+            .inner_margin(8.0)
+            .shadow(egui::Shadow::NONE);
 
-        egui::Panel::bottom("status_bar").show(ui, |ui| {
-            ui::status_bar::render(ui, &self.state);
-        });
-
-        egui::Panel::left("file_tree")
-            .resizable(true)
-            .default_size(300.0)
+        egui::Panel::top("toolbar")
+            .frame(panel_frame)
             .show(ui, |ui| {
-                ui::tree::render(ui, &mut self.state);
+                ui::toolbar::render(
+                    ui,
+                    &mut self.state,
+                    is_compact,
+                    &mut self.show_left_panel,
+                    &mut self.show_right_panel,
+                );
             });
 
-        egui::Panel::right("export_list")
-            .resizable(true)
-            .default_size(300.0)
+        egui::Panel::bottom("status_bar")
+            .frame(panel_frame)
             .show(ui, |ui| {
-                ui::export_list::render(ui, &mut self.state);
+                ui::status_bar::render(ui, &self.state);
             });
 
-        egui::CentralPanel::default().show(ui, |ui| {
-            ui::preview::render(ui, &mut self.state);
-        });
+        let central_rect = ui.available_rect_before_wrap();
+
+        if is_compact {
+            let drawer_frame = egui::Frame::window(ui.style())
+                .inner_margin(8.0)
+                .shadow(egui::Shadow::NONE);
+
+            if self.show_left_panel {
+                egui::Window::new("left_drawer")
+                    .fixed_pos(central_rect.left_top())
+                    .fixed_size([280.0, central_rect.height()])
+                    .title_bar(false)
+                    .resizable(false)
+                    .frame(drawer_frame)
+                    .show(ui.ctx(), |ui| {
+                        ui::tree::render(ui, &mut self.state);
+                    });
+            }
+            if self.show_right_panel {
+                egui::Window::new("right_drawer")
+                    .fixed_pos([central_rect.right() - 280.0, central_rect.top()])
+                    .fixed_size([280.0, central_rect.height()])
+                    .title_bar(false)
+                    .resizable(false)
+                    .frame(drawer_frame)
+                    .show(ui.ctx(), |ui| {
+                        ui::export_list::render(ui, &mut self.state);
+                    });
+            }
+        } else {
+            if self.show_left_panel {
+                egui::Panel::left("file_tree")
+                    .resizable(true)
+                    .default_size(280.0)
+                    .frame(panel_frame)
+                    .show(ui, |ui| {
+                        ui::tree::render(ui, &mut self.state);
+                    });
+            }
+            if self.show_right_panel {
+                egui::Panel::right("export_list")
+                    .resizable(true)
+                    .default_size(280.0)
+                    .frame(panel_frame)
+                    .show(ui, |ui| {
+                        ui::export_list::render(ui, &mut self.state);
+                    });
+            }
+        }
+
+        egui::CentralPanel::default()
+            .frame(panel_frame)
+            .show(ui, |ui| {
+                ui::preview::render(ui, &mut self.state);
+            });
     }
 }
