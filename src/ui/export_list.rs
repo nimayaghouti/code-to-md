@@ -2,7 +2,47 @@ use crate::state::AppState;
 use eframe::egui;
 
 pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
-    ui.heading("Export List");
+    let available_width = ui.available_width();
+
+    let render_buttons = |ui: &mut egui::Ui, state: &mut AppState| {
+        let clear_enabled = !state.selected_files.is_empty();
+        if ui
+            .add_enabled(clear_enabled, egui::Button::new("Clear All"))
+            .clicked()
+        {
+            state.selected_files.clear();
+            state.active_list_index = None;
+            state.status = "Cleared all selected files".to_string();
+        }
+
+        let remove_enabled = state.active_list_index.is_some() && !state.selected_files.is_empty();
+        if ui
+            .add_enabled(remove_enabled, egui::Button::new("Remove"))
+            .clicked()
+        {
+            state.remove_selected_from_export();
+        }
+    };
+
+    if available_width < 260.0 {
+        ui.vertical(|ui| {
+            ui.heading("Export List");
+            ui.add_space(4.0);
+
+            let layout = egui::Layout::right_to_left(egui::Align::TOP).with_main_wrap(true);
+            ui.with_layout(layout, |ui| {
+                render_buttons(ui, state);
+            });
+        });
+    } else {
+        ui.horizontal(|ui| {
+            ui.heading("Export List");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                render_buttons(ui, state);
+            });
+        });
+    }
+
     ui.separator();
 
     egui::ScrollArea::both()
