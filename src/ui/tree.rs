@@ -3,7 +3,37 @@ use crate::state::AppState;
 use eframe::egui;
 
 pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
-    ui.heading("Project Files");
+    let available_width = ui.available_width();
+
+    let render_buttons = |ui: &mut egui::Ui, state: &mut AppState| {
+        let add_enabled = state.selected_tree_file.is_some();
+        if ui
+            .add_enabled(add_enabled, egui::Button::new("Add Selected"))
+            .clicked()
+        {
+            if let Some(path) = state.selected_tree_file.clone() {
+                state.add_file_to_export(path);
+            }
+        }
+    };
+
+    if available_width < 240.0 {
+        ui.vertical(|ui| {
+            ui.heading("Project Files");
+            ui.add_space(4.0);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                render_buttons(ui, state);
+            });
+        });
+    } else {
+        ui.horizontal(|ui| {
+            ui.heading("Project Files");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                render_buttons(ui, state);
+            });
+        });
+    }
+
     ui.separator();
 
     egui::ScrollArea::both()

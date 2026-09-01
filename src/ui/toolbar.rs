@@ -1,64 +1,74 @@
 use crate::state::AppState;
 use eframe::egui;
 
-pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
+pub fn render(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    is_compact: bool,
+    show_left_panel: &mut bool,
+    show_right_panel: &mut bool,
+) {
     ui.horizontal(|ui| {
-        if ui.button("Open Folder").clicked() {
-            state.open_folder_dialog();
-        }
-        ui.separator();
-
-        if ui.button("Save Output As...").clicked() {
-            state.select_output_path_dialog();
-        }
-
-        let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
-
-        if ui
-            .add_enabled(can_export, egui::Button::new("Generate"))
-            .clicked()
-        {
-            state.generate_markdown();
-        }
-
-        if ui
-            .add_enabled(can_export, egui::Button::new("Append"))
-            .clicked()
-        {
-            state.append_markdown();
-        }
-
-        ui.separator();
-
-        let add_enabled = state.selected_tree_file.is_some();
-        if ui
-            .add_enabled(add_enabled, egui::Button::new("Add Selected File"))
-            .clicked()
-        {
-            if let Some(path) = state.selected_tree_file.clone() {
-                state.add_file_to_export(path);
+        if is_compact {
+            if ui.toggle_value(show_left_panel, "📁 Tree").clicked() {
+                if *show_left_panel {
+                    *show_right_panel = false;
+                }
             }
+            ui.separator();
         }
 
-        let remove_enabled = state.active_list_index.is_some() && !state.selected_files.is_empty();
-        if ui
-            .add_enabled(remove_enabled, egui::Button::new("Remove Selected"))
-            .clicked()
-        {
-            state.remove_selected_from_export();
-        }
+        ui.menu_button("File", |ui| {
+            if ui
+                .add(egui::Button::new("Open Folder...").shortcut_text("Ctrl+O"))
+                .clicked()
+            {
+                state.open_folder_dialog();
+                ui.close();
+            }
+            if ui
+                .add(egui::Button::new("Save Output As...").shortcut_text("Ctrl+S"))
+                .clicked()
+            {
+                state.select_output_path_dialog();
+                ui.close();
+            }
+        });
 
-        let clear_enabled = !state.selected_files.is_empty();
-        if ui
-            .add_enabled(clear_enabled, egui::Button::new("Clear All"))
-            .clicked()
-        {
-            state.selected_files.clear();
-            state.active_list_index = None;
-            state.status = "Cleared all selected files".to_string();
-        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if is_compact {
+                if ui.toggle_value(show_right_panel, "📝 List").clicked() {
+                    if *show_right_panel {
+                        *show_left_panel = false;
+                    }
+                }
+                ui.separator();
+            }
 
-        ui.separator();
-        ui.label("CodeToMd");
+            let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
+
+            ui.menu_button("Output", |ui| {
+                if ui
+                    .add_enabled(
+                        can_export,
+                        egui::Button::new("Generate").shortcut_text("Ctrl+G"),
+                    )
+                    .clicked()
+                {
+                    state.generate_markdown();
+                    ui.close();
+                }
+                if ui
+                    .add_enabled(
+                        can_export,
+                        egui::Button::new("Append").shortcut_text("Ctrl+Shift+G"),
+                    )
+                    .clicked()
+                {
+                    state.append_markdown();
+                    ui.close();
+                }
+            });
+        });
     });
 }
