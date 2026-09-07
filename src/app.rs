@@ -28,10 +28,6 @@ impl App {
                         }
                     }
                 }
-
-                if let Some(ref last_out) = state.config.last_output_path {
-                    state.output_path = Some(last_out.clone());
-                }
             }
         }
 
