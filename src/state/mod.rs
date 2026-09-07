@@ -1,16 +1,27 @@
 pub mod export;
 pub mod io;
+pub mod preview;
 pub mod selection;
 
 use crate::fs_tree::TreeNode;
 use crate::preview::FilePreview;
+use eframe::egui;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, mpsc};
 
 #[derive(Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct AppConfig {
     pub last_project_root: Option<PathBuf>,
     pub last_output_path: Option<PathBuf>,
+    pub was_maximized: bool,
+}
+
+pub struct CachedHighlight {
+    pub layout_job: egui::text::LayoutJob,
+    pub size: usize,
 }
 
 pub struct AppState {
@@ -24,10 +35,25 @@ pub struct AppState {
     pub selected_files: Vec<PathBuf>,
     pub active_list_index: Option<usize>,
     pub output_path: Option<PathBuf>,
+    pub syntax_set: Arc<syntect::parsing::SyntaxSet>,
+    pub theme: Arc<syntect::highlighting::Theme>,
+    pub highlight_cache: HashMap<PathBuf, CachedHighlight>,
+    pub highlight_cache_size: usize,
+    pub highlight_receiver: Option<mpsc::Receiver<crate::highlight::HighlightResult>>,
+    pub highlight_generation: u64,
 }
 
 impl AppState {
     pub fn new(cli_folder: Option<PathBuf>) -> Self {
+        let syntax_set = Arc::new(syntect::parsing::SyntaxSet::load_defaults_newlines());
+        let theme_set = syntect::highlighting::ThemeSet::load_defaults();
+        let theme = Arc::new(
+            theme_set
+                .themes
+                .get("base16-ocean.dark")
+                .expect("base16-ocean.dark theme should exist")
+                .clone(),
+        );
         let mut state = Self {
             config: AppConfig::default(),
             status: "Ready".to_string(),
@@ -39,6 +65,12 @@ impl AppState {
             selected_files: Vec::new(),
             active_list_index: None,
             output_path: None,
+            syntax_set,
+            theme,
+            highlight_cache: HashMap::new(),
+            highlight_cache_size: 0,
+            highlight_receiver: None,
+            highlight_generation: 0,
         };
 
         if let Some(folder) = cli_folder {
