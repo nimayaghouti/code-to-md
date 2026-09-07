@@ -9,14 +9,14 @@ pub fn render(
     show_right_panel: &mut bool,
 ) {
     ui.horizontal(|ui| {
-        if is_compact {
-            if ui.toggle_value(show_left_panel, "📁 Tree").clicked() {
-                if *show_left_panel {
-                    *show_right_panel = false;
-                }
+        if ui.toggle_value(show_left_panel, "📁 Tree").clicked() {
+            if is_compact && *show_left_panel {
+                *show_right_panel = false;
             }
-            ui.separator();
         }
+        ui.separator();
+
+        let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
 
         ui.menu_button("File", |ui| {
             if ui
@@ -26,49 +26,50 @@ pub fn render(
                 state.open_folder_dialog();
                 ui.close();
             }
+
+            ui.separator();
+
             if ui
-                .add(egui::Button::new("Save Output As...").shortcut_text("Ctrl+S"))
+                .add_enabled(
+                    can_export,
+                    egui::Button::new("Save").shortcut_text("Ctrl+S"),
+                )
                 .clicked()
             {
-                state.select_output_path_dialog();
+                state.save_markdown();
+                ui.close();
+            }
+
+            if ui
+                .add_enabled(
+                    can_export,
+                    egui::Button::new("Save As...").shortcut_text("Ctrl+Shift+S"),
+                )
+                .clicked()
+            {
+                state.save_as_markdown();
+                ui.close();
+            }
+
+            if ui
+                .add_enabled(
+                    can_export,
+                    egui::Button::new("Append").shortcut_text("Ctrl+Shift+A"),
+                )
+                .clicked()
+            {
+                state.append_markdown();
                 ui.close();
             }
         });
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if is_compact {
-                if ui.toggle_value(show_right_panel, "📝 List").clicked() {
-                    if *show_right_panel {
-                        *show_left_panel = false;
-                    }
+            if ui.toggle_value(show_right_panel, "📝 List").clicked() {
+                if is_compact && *show_right_panel {
+                    *show_left_panel = false;
                 }
-                ui.separator();
             }
-
-            let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
-
-            ui.menu_button("Output", |ui| {
-                if ui
-                    .add_enabled(
-                        can_export,
-                        egui::Button::new("Generate").shortcut_text("Ctrl+G"),
-                    )
-                    .clicked()
-                {
-                    state.generate_markdown();
-                    ui.close();
-                }
-                if ui
-                    .add_enabled(
-                        can_export,
-                        egui::Button::new("Append").shortcut_text("Ctrl+Shift+G"),
-                    )
-                    .clicked()
-                {
-                    state.append_markdown();
-                    ui.close();
-                }
-            });
+            ui.separator();
         });
     });
 }
