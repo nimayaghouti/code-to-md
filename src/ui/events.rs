@@ -11,32 +11,34 @@ pub fn handle(ui: &mut egui::Ui, state: &mut AppState) {
         state.open_folder_dialog();
     }
 
+    let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
+
+    if ui.input_mut(|i| {
+        i.consume_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::CTRL | egui::Modifiers::SHIFT,
+            egui::Key::S,
+        ))
+    }) {
+        if can_export {
+            state.save_as_markdown();
+        }
+    }
+
     if ui.input_mut(|i| {
         i.consume_shortcut(&egui::KeyboardShortcut::new(
             egui::Modifiers::CTRL,
             egui::Key::S,
         ))
     }) {
-        state.select_output_path_dialog();
-    }
-
-    let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
-
-    if ui.input_mut(|i| {
-        i.consume_shortcut(&egui::KeyboardShortcut::new(
-            egui::Modifiers::CTRL,
-            egui::Key::G,
-        ))
-    }) {
         if can_export {
-            state.generate_markdown();
+            state.save_markdown();
         }
     }
 
     if ui.input_mut(|i| {
         i.consume_shortcut(&egui::KeyboardShortcut::new(
             egui::Modifiers::CTRL | egui::Modifiers::SHIFT,
-            egui::Key::G,
+            egui::Key::A,
         ))
     }) {
         if can_export {

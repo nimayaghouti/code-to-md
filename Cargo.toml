@@ -12,6 +12,7 @@ ignore = "0.4.33"
 rfd = "0.17.2"
 serde = { version = "1.0", features = ["derive"] }
 image = { version = "0.25", default-features = false, features = ["ico"] }
+syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
 
 [build-dependencies]
 winres = "0.1"

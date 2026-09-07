@@ -25,6 +25,7 @@ fn main() -> anyhow::Result<()> {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_app_id("code_to_md_app")
             .with_icon(Arc::new(load_icon()))
+            .with_min_inner_size([450.0, 600.0])
             .with_visible(false),
         ..Default::default()
     };

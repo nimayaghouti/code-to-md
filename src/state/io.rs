@@ -20,6 +20,8 @@ impl AppState {
                 self.preview_content = None;
                 self.selected_files.clear();
                 self.active_list_index = None;
+                self.clear_preview_cache();
+                self.output_path = None;
                 self.status = format!("Opened folder: {}", path.display());
             }
             Err(e) => {
@@ -35,6 +37,10 @@ impl AppState {
 
         if let Some(ref current) = self.output_path {
             if let Some(parent) = current.parent() {
+                dialog = dialog.set_directory(parent);
+            }
+        } else if let Some(ref last_out) = self.config.last_output_path {
+            if let Some(parent) = last_out.parent() {
                 dialog = dialog.set_directory(parent);
             }
         } else if let Some(desktop) = dirs::desktop_dir() {
