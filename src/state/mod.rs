@@ -7,7 +7,7 @@ use crate::fs_tree::TreeNode;
 use crate::preview::FilePreview;
 use eframe::egui;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
 
@@ -41,6 +41,13 @@ pub struct AppState {
     pub highlight_cache_size: usize,
     pub highlight_receiver: Option<mpsc::Receiver<crate::highlight::HighlightResult>>,
     pub highlight_generation: u64,
+    pub filter_ignored: bool,
+    pub tree_search: String,
+    pub search_matches: Option<HashSet<PathBuf>>,
+    pub search_match_count: usize,
+    pub checked_files: HashSet<PathBuf>,
+    pub checked_dirs: HashSet<PathBuf>,
+    pub checked_export_files: HashSet<PathBuf>,
 }
 
 impl AppState {
@@ -71,6 +78,13 @@ impl AppState {
             highlight_cache_size: 0,
             highlight_receiver: None,
             highlight_generation: 0,
+            filter_ignored: true,
+            tree_search: String::new(),
+            search_matches: None,
+            search_match_count: 0,
+            checked_files: HashSet::new(),
+            checked_dirs: HashSet::new(),
+            checked_export_files: HashSet::new(),
         };
 
         if let Some(folder) = cli_folder {

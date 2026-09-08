@@ -3,43 +3,93 @@ use eframe::egui;
 
 pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
     let available_width = ui.available_width();
+    let is_narrow = available_width < 360.0;
 
-    let render_buttons = |ui: &mut egui::Ui, state: &mut AppState| {
-        let clear_enabled = !state.selected_files.is_empty();
-        if ui
-            .add_enabled(clear_enabled, egui::Button::new("Clear All"))
-            .clicked()
-        {
-            state.selected_files.clear();
-            state.active_list_index = None;
-            state.status = "Cleared all selected files".to_string();
-        }
+    let checked_count = state.checked_export_files.len();
+    let has_items = !state.selected_files.is_empty();
+    let has_active_selection = state.active_list_index.is_some() && has_items;
 
-        let remove_enabled = state.active_list_index.is_some() && !state.selected_files.is_empty();
-        if ui
-            .add_enabled(remove_enabled, egui::Button::new("Remove"))
-            .clicked()
-        {
-            state.remove_selected_from_export();
-        }
-    };
-
-    if available_width < 260.0 {
+    if is_narrow {
         ui.vertical(|ui| {
             ui.heading("Export List");
-            ui.add_space(4.0);
+            ui.add_space(2.0);
 
-            let layout = egui::Layout::right_to_left(egui::Align::TOP).with_main_wrap(true);
-            ui.with_layout(layout, |ui| {
-                render_buttons(ui, state);
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .add_enabled(has_active_selection, egui::Button::new("Remove Selected"))
+                    .clicked()
+                {
+                    state.remove_selected_from_export();
+                }
+                if ui
+                    .add_enabled(has_items, egui::Button::new("Clear All"))
+                    .clicked()
+                {
+                    state.clear_all_export_files();
+                }
+            });
+
+            ui.separator();
+            ui.add_space(2.0);
+
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .add_enabled(
+                        checked_count > 0,
+                        egui::Button::new(format!("Remove Checked ({})", checked_count)),
+                    )
+                    .clicked()
+                {
+                    state.remove_checked_from_export();
+                }
+                if ui
+                    .add_enabled(checked_count > 0, egui::Button::new("Clear Checks"))
+                    .clicked()
+                {
+                    state.clear_export_checked();
+                    state.status = "Cleared export checks".to_string();
+                }
             });
         });
     } else {
         ui.horizontal(|ui| {
             ui.heading("Export List");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                render_buttons(ui, state);
+                if ui
+                    .add_enabled(has_items, egui::Button::new("Clear All"))
+                    .clicked()
+                {
+                    state.clear_all_export_files();
+                }
+                if ui
+                    .add_enabled(has_active_selection, egui::Button::new("Remove Selected"))
+                    .clicked()
+                {
+                    state.remove_selected_from_export();
+                }
             });
+        });
+
+        ui.separator();
+        ui.add_space(2.0);
+
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(
+                    checked_count > 0,
+                    egui::Button::new(format!("Remove Checked ({})", checked_count)),
+                )
+                .clicked()
+            {
+                state.remove_checked_from_export();
+            }
+            if ui
+                .add_enabled(checked_count > 0, egui::Button::new("Clear Checks"))
+                .clicked()
+            {
+                state.clear_export_checked();
+                state.status = "Cleared export checks".to_string();
+            }
         });
     }
 
@@ -54,20 +104,40 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                 let mut clicked_idx = None;
                 let mut to_remove_idx = None;
 
-                for (i, path) in state.selected_files.iter().enumerate() {
+                let files = state.selected_files.clone();
+
+                for (i, path) in files.iter().enumerate() {
                     let label = crate::state::to_rel_path_string(state.project_root.as_ref(), path);
                     let is_selected = state.active_list_index == Some(i);
-                    let response = ui.selectable_label(is_selected, label);
 
-                    if response.clicked() {
-                        clicked_idx = Some(i);
-                    }
-
-                    response.context_menu(|ui| {
-                        if ui.button("Remove from Markdown").clicked() {
-                            to_remove_idx = Some(i);
-                            ui.close();
+                    ui.horizontal(|ui| {
+                        let mut chk = state.checked_export_files.contains(path);
+                        if ui.checkbox(&mut chk, "").changed() {
+                            state.set_export_checked(path.clone(), chk);
                         }
+
+                        let response = ui.selectable_label(is_selected, label);
+                        if response.clicked() {
+                            clicked_idx = Some(i);
+                        }
+
+                        response.context_menu(|ui| {
+                            if ui.button("Remove from Markdown").clicked() {
+                                to_remove_idx = Some(i);
+                                ui.close();
+                            }
+                        });
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.add_space(14.0);
+                            if ui
+                                .small_button("−")
+                                .on_hover_text("Remove from export list")
+                                .clicked()
+                            {
+                                to_remove_idx = Some(i);
+                            }
+                        });
                     });
                 }
 
