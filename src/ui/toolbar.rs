@@ -16,7 +16,8 @@ pub fn render(
         }
         ui.separator();
 
-        let can_export = state.project_root.is_some() && !state.selected_files.is_empty();
+        let has_active_dir = state.project_root.is_some();
+        let can_export = has_active_dir && !state.selected_files.is_empty();
 
         ui.menu_button("File", |ui| {
             if ui
@@ -25,6 +26,18 @@ pub fn render(
             {
                 state.open_folder_dialog();
                 ui.close();
+            }
+
+            if has_active_dir {
+                let check_mark = if state.filter_ignored { "✔" } else { "" };
+                if ui
+                    .add(egui::Button::new("Hide ignored").shortcut_text(check_mark))
+                    .on_hover_text("Hide hidden (dot) files and entries matched by .gitignore")
+                    .clicked()
+                {
+                    state.set_filter_ignored(!state.filter_ignored);
+                    ui.close();
+                }
             }
 
             ui.separator();
