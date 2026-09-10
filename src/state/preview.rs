@@ -1,4 +1,4 @@
-use super::{AppState, CachedHighlight};
+use super::{AppState, CachedHighlight, PreviewMode};
 use crate::highlight::{HighlightResult, spawn_highlight};
 use crate::preview::{FilePreview, PreviewContent, load_preview};
 use eframe::egui;
@@ -15,7 +15,32 @@ impl AppState {
         self.highlight_receiver = None;
         self.preview_path = Some(path.clone());
 
-        match load_preview(&path) {
+        let mut cache_key = path.clone();
+        if self.preview_mode == PreviewMode::Diff {
+            cache_key.set_extension("diff");
+        }
+
+        let content_result = if self.preview_mode == PreviewMode::Diff {
+            if let Some(diff) =
+                crate::state::export::get_file_diff(self.project_root.as_ref().unwrap(), &path)
+            {
+                Ok(FilePreview {
+                    path: path.clone(),
+                    size: diff.len() as u64,
+                    content: PreviewContent::Text(diff),
+                })
+            } else {
+                Ok(FilePreview {
+                    path: path.clone(),
+                    size: 0,
+                    content: PreviewContent::Text("No changes or file untracked.".to_string()),
+                })
+            }
+        } else {
+            load_preview(&path)
+        };
+
+        match content_result {
             Ok(preview) => {
                 self.status = format!(
                     "Loaded {} bytes: {}",
@@ -24,12 +49,12 @@ impl AppState {
                 );
 
                 if let PreviewContent::Text(text) = &preview.content {
-                    if !self.is_highlight_cached(&path, text.len()) {
+                    if !self.is_highlight_cached(&cache_key, text.len()) {
                         let font_id = egui::FontId::new(14.0, egui::FontFamily::Monospace);
 
                         self.highlight_receiver = Some(spawn_highlight(
                             text.clone(),
-                            path.clone(),
+                            cache_key.clone(),
                             generation,
                             self.syntax_set.clone(),
                             self.theme.clone(),
@@ -73,7 +98,12 @@ impl AppState {
             return;
         }
 
-        if self.preview_path.as_ref() != Some(&result.path) {
+        let mut expected_path = self.preview_path.clone().unwrap_or_default();
+        if self.preview_mode == PreviewMode::Diff {
+            expected_path.set_extension("diff");
+        }
+
+        if result.path != expected_path {
             return;
         }
 
@@ -101,6 +131,8 @@ impl AppState {
             result.path,
             CachedHighlight {
                 layout_job: result.layout_job,
+                line_numbers: result.line_numbers,
+                galley: None,
                 size: result.size,
             },
         );
