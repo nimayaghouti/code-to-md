@@ -57,6 +57,17 @@ impl eframe::App for App {
 
         ui::events::handle(ui, &mut self.state);
 
+        if let Some(rx) = &self.state.watcher_rx {
+            let mut changed = false;
+            while let Ok(_) = rx.try_recv() {
+                changed = true;
+            }
+            if changed {
+                self.state.refresh_tree();
+                ui.ctx().request_repaint();
+            }
+        }
+
         let screen_width = ui.max_rect().width();
         let is_compact = screen_width < 900.0;
 
