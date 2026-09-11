@@ -116,6 +116,44 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                             state.set_export_checked(path.clone(), chk);
                         }
 
+                        if state.git_statuses.get(path) == Some(&crate::state::GitStatus::Modified)
+                        {
+                            let mode = state
+                                .export_modes
+                                .get(path)
+                                .copied()
+                                .unwrap_or(crate::state::ExportMode::Full);
+                            let (label_text, color) = match mode {
+                                crate::state::ExportMode::Full => {
+                                    ("[Full]", ui.visuals().text_color())
+                                }
+                                crate::state::ExportMode::Diff => {
+                                    ("[Diff]", egui::Color32::from_rgb(220, 160, 40))
+                                }
+                            };
+
+                            let response = ui
+                                .add(
+                                    egui::Label::new(
+                                        egui::RichText::new(label_text).color(color).size(11.0),
+                                    )
+                                    .sense(egui::Sense::click()),
+                                )
+                                .on_hover_cursor(egui::CursorIcon::PointingHand);
+
+                            if response.clicked() {
+                                let new_mode = match mode {
+                                    crate::state::ExportMode::Full => {
+                                        crate::state::ExportMode::Diff
+                                    }
+                                    crate::state::ExportMode::Diff => {
+                                        crate::state::ExportMode::Full
+                                    }
+                                };
+                                state.export_modes.insert(path.clone(), new_mode);
+                            }
+                        }
+
                         let response = ui.selectable_label(is_selected, label);
                         if response.clicked() {
                             clicked_idx = Some(i);
