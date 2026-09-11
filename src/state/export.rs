@@ -1,4 +1,40 @@
-use super::{AppState, is_binary_bytes};
+use super::{AppState, ExportMode, is_binary_bytes};
+use std::path::Path;
+
+pub fn get_file_diff(root: &Path, file_path: &Path) -> Option<String> {
+    let repo = git2::Repository::discover(root).ok()?;
+    let mut opts = git2::DiffOptions::new();
+    let rel_path = file_path
+        .strip_prefix(repo.workdir().unwrap_or(root))
+        .ok()?;
+    opts.pathspec(rel_path);
+    opts.include_untracked(true);
+    opts.show_untracked_content(true);
+
+    let tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+    let diff = repo
+        .diff_tree_to_workdir_with_index(tree.as_ref(), Some(&mut opts))
+        .ok()?;
+
+    let mut patch_text = String::new();
+    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+        let origin = line.origin();
+        if origin == '+' || origin == '-' || origin == ' ' {
+            patch_text.push(origin);
+        }
+        if let Ok(s) = std::str::from_utf8(line.content()) {
+            patch_text.push_str(s);
+        }
+        true
+    })
+    .ok()?;
+
+    if patch_text.is_empty() {
+        None
+    } else {
+        Some(patch_text)
+    }
+}
 
 impl AppState {
     pub fn save_markdown(&mut self) {
@@ -59,6 +95,24 @@ impl AppState {
                 continue;
             }
 
+            let mode = self
+                .export_modes
+                .get(path)
+                .copied()
+                .unwrap_or(ExportMode::Full);
+
+            if mode == ExportMode::Diff {
+                if let Some(diff_text) = get_file_diff(root, path) {
+                    let entry =
+                        crate::markdown::generate_markdown_entry(root, path, &diff_text, true);
+                    output_text.push_str(&entry);
+                    written_count += 1;
+                } else {
+                    skipped_count += 1;
+                }
+                continue;
+            }
+
             match std::fs::read(path) {
                 Ok(bytes) => {
                     if is_binary_bytes(&bytes) {
@@ -67,8 +121,9 @@ impl AppState {
                     }
                     match String::from_utf8(bytes) {
                         Ok(content) => {
-                            let entry =
-                                crate::markdown::generate_markdown_entry(root, path, &content);
+                            let entry = crate::markdown::generate_markdown_entry(
+                                root, path, &content, false,
+                            );
                             output_text.push_str(&entry);
                             written_count += 1;
                         }
