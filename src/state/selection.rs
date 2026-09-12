@@ -1,4 +1,4 @@
-use super::{AppState, to_rel_path_string};
+use super::{AppState, ExportMode, to_rel_path_string};
 use crate::fs_tree::TreeNode;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -30,7 +30,8 @@ impl AppState {
         }
 
         let rel = to_rel_path_string(self.project_root.as_ref(), &path);
-        self.selected_files.push(path);
+        self.selected_files.push(path.clone());
+        self.export_modes.insert(path, ExportMode::Full);
         self.status = format!("Added file: {}", rel);
     }
 
@@ -48,6 +49,7 @@ impl AppState {
         let removed = self.selected_files.remove(idx);
 
         self.checked_export_files.remove(&removed);
+        self.export_modes.remove(&removed);
 
         let rel = to_rel_path_string(self.project_root.as_ref(), &removed);
         self.status = format!("Removed file: {}", rel);
@@ -72,6 +74,7 @@ impl AppState {
     pub fn clear_all_export_files(&mut self) {
         self.selected_files.clear();
         self.checked_export_files.clear();
+        self.export_modes.clear();
         self.active_list_index = None;
         self.clear_preview_cache();
         self.status = "Cleared all selected files".to_string();
@@ -177,6 +180,8 @@ impl AppState {
         let count = self.checked_export_files.len();
         self.selected_files
             .retain(|p| !self.checked_export_files.contains(p));
+        self.export_modes
+            .retain(|p, _| self.selected_files.contains(p));
         self.checked_export_files.clear();
         self.active_list_index = None;
         self.clear_preview_cache();

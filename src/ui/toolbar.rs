@@ -38,6 +38,15 @@ pub fn render(
                     state.set_filter_ignored(!state.filter_ignored);
                     ui.close();
                 }
+
+                if ui
+                    .add(egui::Button::new("🔄 Refresh"))
+                    .on_hover_text("Manually refresh the file tree")
+                    .clicked()
+                {
+                    state.refresh_tree();
+                    ui.close();
+                }
             }
 
             ui.separator();

@@ -11,6 +11,7 @@ pub struct HighlightResult {
     pub path: PathBuf,
     pub size: usize,
     pub layout_job: LayoutJob,
+    pub line_numbers: String,
 }
 
 fn find_syntax<'a>(syntax_set: &'a SyntaxSet, path: &Path) -> &'a SyntaxReference {
@@ -23,23 +24,16 @@ fn find_syntax<'a>(syntax_set: &'a SyntaxSet, path: &Path) -> &'a SyntaxReferenc
     let syntax_ext = match ext.as_str() {
         "js" | "mjs" | "cjs" | "jsx" => "js",
         "ts" | "mts" | "cts" | "tsx" => "js",
-
         "css" | "scss" | "sass" => "css",
         "vue" => "html",
-
         "json" | "jsonc" => "json",
         "yaml" | "yml" => "yaml",
-
         "html" | "htm" => "html",
         "svg" | "xml" => "xml",
-
         "md" | "markdown" => "md",
-
         "sh" | "bash" | "zsh" => "sh",
-
         "c" | "h" => "c",
         "cpp" | "cc" | "cxx" | "hpp" => "cpp",
-
         _ => ext.as_str(),
     };
 
@@ -98,6 +92,12 @@ pub fn spawn_highlight(
     std::thread::spawn(move || {
         let size = text.len();
 
+        let line_count = text.lines().count().max(1);
+        let line_numbers = (1..=line_count)
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
         let layout_job = build_highlighted_layout(&text, &path, &syntax_set, &theme, &font_id);
 
         let _ = sender.send(HighlightResult {
@@ -105,6 +105,7 @@ pub fn spawn_highlight(
             path,
             size,
             layout_job,
+            line_numbers,
         });
     });
 

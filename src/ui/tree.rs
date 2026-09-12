@@ -228,6 +228,21 @@ fn render_tree_node(
             }
 
             let is_selected = state.selected_tree_file.as_ref() == Some(&node.path);
+
+            if let Some(git_status) = state.git_statuses.get(&node.path) {
+                let (color, letter) = match git_status {
+                    crate::state::GitStatus::Modified => {
+                        (egui::Color32::from_rgb(220, 160, 40), "M")
+                    }
+                    crate::state::GitStatus::Untracked => {
+                        (egui::Color32::from_rgb(40, 200, 80), "U")
+                    }
+                    crate::state::GitStatus::Added => (egui::Color32::from_rgb(40, 200, 80), "A"),
+                    crate::state::GitStatus::Deleted => (egui::Color32::from_rgb(200, 40, 40), "D"),
+                };
+                ui.label(egui::RichText::new(letter).color(color).size(11.0));
+            }
+
             let response = ui.selectable_label(is_selected, &node.name);
             if response.clicked() {
                 state.select_tree_file(node.path.clone());

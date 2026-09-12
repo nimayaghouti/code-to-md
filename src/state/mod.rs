@@ -6,10 +6,32 @@ pub mod selection;
 use crate::fs_tree::TreeNode;
 use crate::preview::FilePreview;
 use eframe::egui;
+use notify::RecommendedWatcher;
+use notify_debouncer_mini::{DebouncedEvent, Debouncer};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum GitStatus {
+    Modified,
+    Untracked,
+    Deleted,
+    Added,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ExportMode {
+    Full,
+    Diff,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PreviewMode {
+    Source,
+    Diff,
+}
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -21,6 +43,8 @@ pub struct AppConfig {
 
 pub struct CachedHighlight {
     pub layout_job: egui::text::LayoutJob,
+    pub line_numbers: String,
+    pub galley: Option<std::sync::Arc<egui::Galley>>,
     pub size: usize,
 }
 
@@ -48,6 +72,11 @@ pub struct AppState {
     pub checked_files: HashSet<PathBuf>,
     pub checked_dirs: HashSet<PathBuf>,
     pub checked_export_files: HashSet<PathBuf>,
+    pub watcher: Option<Debouncer<RecommendedWatcher>>,
+    pub watcher_rx: Option<mpsc::Receiver<Result<Vec<DebouncedEvent>, notify::Error>>>,
+    pub git_statuses: HashMap<PathBuf, GitStatus>,
+    pub export_modes: HashMap<PathBuf, ExportMode>,
+    pub preview_mode: PreviewMode,
 }
 
 impl AppState {
@@ -85,6 +114,11 @@ impl AppState {
             checked_files: HashSet::new(),
             checked_dirs: HashSet::new(),
             checked_export_files: HashSet::new(),
+            watcher: None,
+            watcher_rx: None,
+            git_statuses: HashMap::new(),
+            export_modes: HashMap::new(),
+            preview_mode: PreviewMode::Source,
         };
 
         if let Some(folder) = cli_folder {

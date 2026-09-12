@@ -12,7 +12,6 @@ pub fn path_to_markdown_path(root: &Path, path: &Path) -> String {
             }
         }
     }
-    // Remove trailing slash
     if result.ends_with('/') {
         result.pop();
     }
@@ -20,12 +19,16 @@ pub fn path_to_markdown_path(root: &Path, path: &Path) -> String {
     result
 }
 
-pub fn generate_markdown_entry(root: &Path, path: &Path, content: &str) -> String {
+pub fn generate_markdown_entry(root: &Path, path: &Path, content: &str, is_diff: bool) -> String {
     let markdown_path = path_to_markdown_path(root, path);
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let language = extension_to_language(ext);
 
-    // Determine fence length (Dynamic code fences)
+    let language = if is_diff {
+        "diff"
+    } else {
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        extension_to_language(ext)
+    };
+
     let mut fence_len = 3;
     let mut fence = "`".repeat(fence_len);
     while content.contains(&fence) {
@@ -60,7 +63,7 @@ mod tests {
         let root = PathBuf::from("/project");
         let file = PathBuf::from("/project/README.md");
         let content = "Here is some code:\n```rust\nfn main() {}\n```";
-        let entry = generate_markdown_entry(&root, &file, content);
+        let entry = generate_markdown_entry(&root, &file, content, false);
 
         assert!(entry.contains("````markdown\nHere is some code"));
         assert!(entry.ends_with("````\n\n"));
